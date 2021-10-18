@@ -1,0 +1,152 @@
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> 
+  <link rel="stylesheet" href="bootstrap.min.css">
+  <script src="jquery.min.js"></script>
+  <script src="papaparse.min.js"></script>
+  <title>Machlake CSV Importer</title>
+  <style>
+	.pdfobject-container { height: 500px;}
+	.pdfobject { border: 1px solid #666; }
+  </style>
+</head>
+<body>
+  <div class="container" style="padding:10px 10px;">
+    <h1>Importer for CSV to Machlake</h1>
+	<div id="header"></div>
+	<div class="well" style="width: fit-content;">
+		<div class="row">
+		<form class="form-inline">
+			<div class="form-group">
+			  <label for="files">CSV file:</label>
+			  <input type="file" id="files"  class="form-control" accept=".csv" required />
+			</div>
+			<div class="form-group">
+			    <button type="submit" id="submit-file" class="btn btn-primary">Read File</button>
+			</div>
+            
+		</form>
+            <form id="submit-option-form" class="option-form" style="margin: 1rem;">
+                <div>
+                    <label>API KEY</label><input type="text" id="api-key" size=150 style="margin-left: 1rem; margin-bottom: 1rem; width: 65%;"  required/>
+                    <label style="margin-left: 1rem;">LAKE ID</label><input type="text" id="lake-id" size=20 style="margin-left: 1rem;" required/>
+                </div>
+                <div>
+                    <label>DATE FORMAT</label>
+                    <select name="DateFormat" id="date-format" style="margin-left: 1rem;">
+                        <option value="YYYY-MM-DD HH24:MI:SS">YYYY-MM-DD HH:MM:SS</option>
+                        <option value="YYYY-MM-DD HH24:MI:SS mmm:uuu:nnn">YYYY-MM-DD HH:MM:SS mmm:uuu:nnn</option>
+                        <option value="SECOND">timestamp(second)</option>
+                        <option value="MILLISECOND">timestamp(milisecond)</option>
+                        <option value="MICROSECOND">timestamp(microsecond)</option>
+                        <option value="NANOSECOND">timestamp(nanosecond)</option>
+                      </select>
+                    <label>TIME INDEX</label><input type="number" id="time-index" style="margin-left: 1rem; width: 5rem" min="0" step="1" value=0 required/>
+                    <label style="margin-left: 1rem;">VALUE INDEX LIST</label><input type="text" id="value-index-list" style="margin-left: 1rem; width: 20rem" required/>
+                </div>
+                <input type="submit" id="upload-data" value="Upload">
+            </form>
+		</div>
+		<div class="row"
+			<div class="row" id="parsed_csv_list">
+			</div>
+		</div>
+	</div>
+	<div id="footer"></div>
+  </div>
+</body>
+</html>
+<script type="text/javascript">
+    var data = undefined
+    const columnList = []
+    const dataArray = []
+  $(document).ready(function(){
+    $('#submit-file').on("click",function(e){
+		e.preventDefault();
+		$('#files').parse({
+			config: {
+				delimiter: "auto",
+				complete: displayHTMLTable,
+			},
+			before: function(file, inputElem)
+			{
+				//console.log("Parsing file...", file);
+			},
+			error: function(err, file)
+			{
+				//console.log("ERROR:", err, file);
+			},
+			complete: function()
+			{
+				//console.log("Done with all files");
+			}
+		});
+    });
+    const form = document.getElementById('submit-option-form');
+
+    form.addEventListener("submit",function(e){
+		e.preventDefault();
+        const apiKey = document.getElementById('api-key').value
+        const lakeId = document.getElementById('lake-id').value
+        const timeIndex = parseInt(document.getElementById('time-index').value)
+        const valueIndexList = document.getElementById('value-index-list').value.split(',').map(data => parseInt(data))
+        const dateFormat = document.getElementById('date-format').value
+        // const url = "https://" + lakeId + ".machlake.com/lakes/values/bulk";
+        const url = "http://127.0.0.1:8080";
+        const times = dataArray[timeIndex].slice(1, dataArray[timeIndex].length)
+        const values = []
+        valueIndexList.map(index => {
+            const name = dataArray[index][0]
+            const aValue = dataArray[index].slice(1, dataArray[index].length)
+            return aValue.map((data, dataIndex) => [name, times[dataIndex], Number(data)])
+        }).map(value => values.push(...value))
+        
+        $.ajax({
+            url:url,
+            async:true,
+            type:'POST',
+            dataType: 'json',
+            data: JSON.stringify({
+                date_format:dateFormat,
+                values: values
+            }),
+            beforeSend:function(xhr){
+                console.log(xhr)
+                xhr.setRequestHeader("Content-type","application/json");
+                xhr.setRequestHeader("x-api-key",apiKey);
+            },
+            success:function(jqXHR) {
+                alert("Data Post Success")
+            },// 요청 완료 시
+            error:function(jqXHR) {
+                alert("Data Post Fail")
+                console.log(jqXHR)
+            },// 요청 실패.
+            complete:function(jqXHR) {}// 요청의 실패, 성공과 상관 없이 완료 될 경우 호출
+        });
+
+
+    });
+	function displayHTMLTable(results){
+		var table = "<table class='table' style=''>";
+        data = results.data;
+        dataArray.push(...data[0].join(",").split(",").map(data => []))
+		for(i=0;i<data.length;i++){
+			table+= "<tr>";
+			var row = data[i];
+			var cells = row.join(",").split(",");
+			 
+			for(j=0;j<cells.length;j++){
+				table+= "<td>";
+				table+= cells[j];
+				table+= "</th>";
+                dataArray[j].push(cells[j])
+			}
+			table+= "</tr>";
+		}
+		table+= "</table>";
+		$("#parsed_csv_list").html(table);
+	}
+  });
+</script>
