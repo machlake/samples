@@ -92,8 +92,7 @@
         const timeIndex = parseInt(document.getElementById('time-index').value)
         const valueIndexList = document.getElementById('value-index-list').value.split(',').map(data => parseInt(data))
         const dateFormat = document.getElementById('date-format').value
-        // const url = "https://" + lakeId + ".machlake.com/lakes/values/bulk";
-        const url = "http://127.0.0.1:8080";
+        const url = "https://" + lakeId + ".machlake.com/lakes/values/bulk";
         const times = dataArray[timeIndex].slice(1, dataArray[timeIndex].length)
         const values = []
         valueIndexList.map(index => {
